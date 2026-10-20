@@ -1,0 +1,24 @@
+{
+  "name": "nocache-dev/laravel",
+  "description": "Correct Cache-Control headers for Laravel responses, plus artisan commands to check URLs and manage nocache.dev monitors.",
+  "type": "library",
+  "license": "MIT",
+  "keywords": ["laravel", "cache-control", "http-cache", "cdn", "middleware", "nocache.dev"],
+  "homepage": "https://nocache.dev/docs/api",
+  "require": {
+    "php": "^8.1",
+    "illuminate/support": "^10.0|^11.0|^12.0",
+    "illuminate/http": "^10.0|^11.0|^12.0",
+    "illuminate/console": "^10.0|^11.0|^12.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^8.0|^9.0|^10.0",
+    "phpunit/phpunit": "^10.5|^11.0"
+  },
+  "autoload": { "psr-4": { "NocacheDev\\Laravel\\": "src/" } },
+  "autoload-dev": { "psr-4": { "NocacheDev\\Laravel\\Tests\\": "tests/" } },
+  "extra": { "laravel": { "providers": ["NocacheDev\\Laravel\\NocacheServiceProvider"] } },
+  "scripts": { "test": "phpunit" },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

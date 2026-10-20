@@ -1,0 +1,2 @@
+<?xml version="1.0"?>
+<phpunit bootstrap="vendor/autoload.php" colors="false"><testsuites><testsuite name="pkg"><directory>tests</directory></testsuite></testsuites></phpunit>
