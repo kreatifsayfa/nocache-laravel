@@ -18,23 +18,62 @@ class PackageTest extends TestCase
         $router->get('/own', fn () => response('x')->header('Cache-Control', 'no-store'))->middleware('nocache.headers');
         $router->get('/cookie', fn () => response('x')->cookie('cart', '1'))->middleware('nocache.headers');
         $router->post('/post', fn () => 'x')->middleware('nocache.headers');
+        $router->get('/own-public-cookie', fn () => response('x')->header('Cache-Control', 'public, s-maxage=60')->cookie('a', '1'))->middleware('nocache.headers');
+        $router->middleware([\Illuminate\Session\Middleware\StartSession::class, 'nocache.headers'])
+            ->get('/session', fn () => 'hi');
+        $router->middleware('web')->group(function ($r) {
+            $r->get('/web-page', fn () => 'hi')->middleware('nocache.headers');
+            $r->withoutMiddleware('web')->middleware('nocache.headers')->group(fn ($r) => $r->get('/no-session', fn () => 'hi'));
+        });
     }
 
     public function test_anonymous_html_gets_cdn_policy()
     {
-        $this->get('/page')->assertHeader('Cache-Control', 'max-age=0, public, s-maxage=300, stale-while-revalidate=60');
+        $r = $this->get('/page');
+        $r->assertHeader('Cache-Control', 'max-age=0, public, s-maxage=300');
+        $r->assertHeader('CDN-Cache-Control', 'max-age=300, stale-while-revalidate=60');
+    }
+
+    public function test_default_never_combines_s_maxage_with_swr()
+    {
+        $cc = $this->get('/page')->headers->get('Cache-Control');
+        $this->assertStringNotContainsString('stale-while-revalidate', $cc);
+    }
+
+    public function test_session_route_is_private_no_store()
+    {
+        $r = $this->get('/session');
+        $r->assertHeader('Cache-Control', 'no-store, private');
+        $this->assertFalse($r->headers->has('CDN-Cache-Control'));
+        $this->assertStringContainsString('Cookie', implode(',', $r->headers->all('vary')));
+    }
+
+    public function test_web_group_is_private_and_readme_pattern_is_public()
+    {
+        $this->app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
+        $this->get('/web-page')->assertHeader('Cache-Control', 'no-store, private');
+        $r = $this->get('/no-session');
+        $r->assertHeader('Cache-Control', 'max-age=0, public, s-maxage=300');
+        $this->assertSame([], $r->headers->getCookies());
+    }
+
+    public function test_public_policy_with_cookie_is_downgraded()
+    {
+        $this->get('/own-public-cookie')->assertHeader('Cache-Control', 'no-store, private');
     }
 
     public function test_s_maxage_parameter()
     {
-        $this->assertStringContainsString('s-maxage=900', $this->get('/ttl')->headers->get('Cache-Control'));
+        $r = $this->get('/ttl');
+        $this->assertStringContainsString('s-maxage=900', $r->headers->get('Cache-Control'));
+        $r->assertHeader('CDN-Cache-Control', 'max-age=900, stale-while-revalidate=60');
     }
 
     public function test_explicit_header_kept_and_cookie_makes_private()
     {
         $this->get('/own')->assertHeader('Cache-Control', 'no-store, private');
         $this->assertStringContainsString('private', $this->get('/cookie')->headers->get('Cache-Control'));
-        $this->assertStringContainsString('no-cache', $this->get('/cookie')->headers->get('Cache-Control'));
+        $this->assertStringContainsString('no-store', $this->get('/cookie')->headers->get('Cache-Control'));
     }
 
     public function test_check_command_and_min_grade()

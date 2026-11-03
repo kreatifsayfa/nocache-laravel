@@ -8,8 +8,14 @@ return [
     // Cache-Control values the middleware sends. Responses that already carry an
     // explicit Cache-Control (other than Laravel's default "no-cache, private") are left alone.
     'policy' => [
-        'html' => 'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
-        'private' => 'private, no-cache',
+        // Browsers revalidate every time; shared caches keep it for 300 s.
+        // No stale-while-revalidate here: s-maxage implies proxy-revalidate, so CDNs ignore it.
+        'html' => 'public, max-age=0, s-maxage=300',
+        // Sent as CDN-Cache-Control (RFC 9213). Cloudflare prefers it over Cache-Control,
+        // so stale-while-revalidate actually works there. Set to null to disable.
+        'cdn' => 'max-age=300, stale-while-revalidate=60',
+        // Signed-in users, started sessions and cookie-setting responses.
+        'private' => 'private, no-store',
     ],
 
     // URLs `php artisan nocache:monitor` registers when called without arguments.
